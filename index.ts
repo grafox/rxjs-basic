@@ -1,67 +1,81 @@
-
+import './style.css';
 console.clear();
 
 // begin lesson code
-import { fromEvent, empty } from 'rxjs';
-import { ajax } from 'rxjs/ajax';
-import {
-  debounceTime,
-  pluck,
-  distinctUntilChanged,
-  switchMap,
-  catchError
-} from 'rxjs/operators';
+import { interval, fromEvent, of, merge, empty } from 'rxjs';
+import { scan, mapTo, takeWhile, takeUntil, tap, startWith, switchMap } from 'rxjs/operators';
 
-const BASE_URL = 'https://api.openbrewerydb.org/breweries';
+/*
+ * CODE FOR FOR FIRST SECTION OF LESSON
+ */
+// const keyup$ = fromEvent(document, 'keyup');
+// const click$ = fromEvent(document, 'click');
 
-//elems
-const inputBox = document.getElementById('text-input');
-const typeaheadContainer = document.getElementById('typeahead-container');
+// keyup$.subscribe(console.log);
+// click$.subscribe(console.log);
+
+/*
+ * merge subscribes to all provided streams on subscription,
+ * emitting any values emitted by these streams.
+ */
+// merge(keyup$, click$).subscribe(console.log);
+
+
+/*
+ * BEGIN SECOND SECTION OF LESSON
+ */
+// elem refs
+const countdown: any = document.getElementById('countdown');
+const message = document.getElementById('message');
+const pauseButton = document.getElementById('pause');
+const startButton = document.getElementById('start');
 
 // streams
-const input$ = fromEvent(inputBox, 'keyup');
+const counter$ = interval(1000);
+const pauseClick$ = fromEvent(pauseButton, 'click');
+const startClick$ = fromEvent(startButton, 'click');
 
-input$
-  .pipe(
-    debounceTime(200),
-    pluck('target', 'value'),
-    distinctUntilChanged(),
-    switchMap(searchTerm => ajax.getJSON(
-      `${BASE_URL}?by_name=${searchTerm}`
-      ).pipe(
-        /*
-         * catchError receives the error and the
-         * observable on which the error was caught
-         * (in case you wish to retry). In this case,
-         * we are catching the error on the ajax
-         * observable returned by our switchMap
-         * function, as we don't want the entire
-         * input$ stream to be completed in the
-         * case of an error.
-         */
-        catchError((error, caught) => {
-          /*
-           * In this case, we just want to ignore
-           * any errors and hope the next request
-           * succeeds so we will just return an 
-           * empty observable (completes without
-           * emitting any values).
-           * 
-           * You can also use the EMPTY import, 
-           * which is just a shortcut for empty(). 
-           * Behind the scenes empty() returns the
-           * EMPTY constant when a scheduler is not provided.
-           * ex. import { EMPTY } from 'rxjs';
-           * return EMPTY;
-           * https://github.com/ReactiveX/rxjs/blob/fc3d4264395d88887cae1df2de1b931964f3e684/src/internal/observable/empty.ts#L62-L64
-           */
-          return empty();
-        })
-      )
-    )
-  )
-  .subscribe((response: any[]) => {
-    // update ui
-    typeaheadContainer.innerHTML = response.map(b => b.name).join('<br>');
-  });
+const COUNTDOWN_FROM = 10;
 
+/*
+ * With merge, we can combine the start and pause
+ * streams, taking relevant action below depending
+ * on which stream emits a value.
+ */
+merge(
+  startClick$.pipe(mapTo(true)), 
+  pauseClick$.pipe(mapTo(false))
+)
+.pipe(
+  /*
+   * Depending on whether start or pause was clicked,
+   * we'll either switch to the interval observable,
+   * or to an empty observable which will act as a pause.
+   */
+  switchMap(shouldStart => {
+    return shouldStart ? counter$ : empty();
+  }),
+  mapTo(-1),
+  scan((accumulator, current) => {
+    return accumulator + current;
+  }, COUNTDOWN_FROM),
+  takeWhile(value => value >= 0),
+  startWith(COUNTDOWN_FROM)
+)
+.subscribe(value => {
+  countdown.innerHTML = value;
+  if (!value) {
+    message.innerHTML = 'Liftoff!';
+  }
+});
+
+/********************
+ * Have a question, comment, or just want to chat about RxJS?
+ * Ping me on Ultimate Courses slack or on 
+ * Twitter https://twitter.com/btroncone
+ * I look forward to hearing from you!
+ * For additional RxJS info and operator examples check out
+ * Learn RxJS (https://www.learnrxjs.io) and
+ * the Ultimate Course RxJS blog!
+ * (https://ultimatecourses.com/blog/category/rxjs)
+ ********************/
