@@ -68,14 +68,3 @@ merge(
     message.innerHTML = 'Liftoff!';
   }
 });
-
-/********************
- * Have a question, comment, or just want to chat about RxJS?
- * Ping me on Ultimate Courses slack or on 
- * Twitter https://twitter.com/btroncone
- * I look forward to hearing from you!
- * For additional RxJS info and operator examples check out
- * Learn RxJS (https://www.learnrxjs.io) and
- * the Ultimate Course RxJS blog!
- * (https://ultimatecourses.com/blog/category/rxjs)
- ********************/
