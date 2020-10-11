@@ -1,4 +1,4 @@
-import './style.css';
+
 console.clear();
 
 // begin lesson code
