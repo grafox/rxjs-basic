@@ -2,69 +2,63 @@
 console.clear();
 
 // begin lesson code
-import { interval, fromEvent, of, merge, empty } from 'rxjs';
-import { scan, mapTo, takeWhile, takeUntil, tap, startWith, switchMap } from 'rxjs/operators';
+import { combineLatest, fromEvent, of } from 'rxjs';
+import { map, filter, delay, mergeMap, tap, share } from 'rxjs/operators';
+import { calculateMortgage } from './helpers';
 
-/*
- * CODE FOR FOR FIRST SECTION OF LESSON
- */
-// const keyup$ = fromEvent(document, 'keyup');
-// const click$ = fromEvent(document, 'click');
+// elems
+const loanAmount = document.getElementById('loanAmount');
+const interest = document.getElementById('interest');
+const loanLength = document.querySelectorAll('.loanLength');
+const expected = document.getElementById('expected');
 
-// keyup$.subscribe(console.log);
-// click$.subscribe(console.log);
+// helpers
+const createInputValueStream = elem => {
+  return fromEvent(elem, 'input').pipe(
+    map((event: any) => parseFloat(event.target.value))
+  );
+};
 
-/*
- * merge subscribes to all provided streams on subscription,
- * emitting any values emitted by these streams.
- */
-// merge(keyup$, click$).subscribe(console.log);
-
-
-/*
- * BEGIN SECOND SECTION OF LESSON
- */
-// elem refs
-const countdown: any = document.getElementById('countdown');
-const message = document.getElementById('message');
-const pauseButton = document.getElementById('pause');
-const startButton = document.getElementById('start');
+// simulating a save request
+const saveResponse = mortageAmount => {
+  return of(mortageAmount).pipe(delay(1000));
+};
 
 // streams
-const counter$ = interval(1000);
-const pauseClick$ = fromEvent(pauseButton, 'click');
-const startClick$ = fromEvent(startButton, 'click');
-
-const COUNTDOWN_FROM = 10;
+const interest$ = createInputValueStream(interest);
+const loanLength$ = createInputValueStream(loanLength);
+const loanAmount$ = createInputValueStream(loanAmount);
 
 /*
- * With merge, we can combine the start and pause
- * streams, taking relevant action below depending
- * on which stream emits a value.
+ * Combine streams of the three values needed to complete
+ * our mortgage calculation. Once all three are filled out
+ * any subsequent updates will trigger a new calculation.
  */
-merge(
-  startClick$.pipe(mapTo(true)), 
-  pauseClick$.pipe(mapTo(false))
-)
-.pipe(
-  /*
-   * Depending on whether start or pause was clicked,
-   * we'll either switch to the interval observable,
-   * or to an empty observable which will act as a pause.
-   */
-  switchMap(shouldStart => {
-    return shouldStart ? counter$ : empty();
+const calculation$ = combineLatest(interest$, loanAmount$, loanLength$).pipe(
+  map(([interest, loanAmount, loanLength]) => {
+    return calculateMortgage(interest, loanAmount, loanLength);
   }),
-  mapTo(-1),
-  scan((accumulator, current) => {
-    return accumulator + current;
-  }, COUNTDOWN_FROM),
-  takeWhile(value => value >= 0),
-  startWith(COUNTDOWN_FROM)
-)
-.subscribe(value => {
-  countdown.innerHTML = value;
-  if (!value) {
-    message.innerHTML = 'Liftoff!';
-  }
+  // proving the stream is shared
+  tap(console.log),
+  /*
+   *  If a field is empty, we'll just ignore the update for now
+   *  by filtering out invalid values.
+   */
+  filter(mortageAmount => !isNaN(mortageAmount)),
+  /*
+   *  Demonstrate sharing a stream so saves won't impact
+   *  display updates. Behind the scenes this uses a Subject,
+   *  which we we learn about in the first lessons of the
+   *  Masterclass course.
+   */
+  share()
+);
+
+calculation$.subscribe(mortageAmount => {
+  expected.innerHTML = mortageAmount;
 });
+
+calculation$
+  .pipe(mergeMap(mortageAmount => saveResponse(mortageAmount)))
+  .subscribe();
+
