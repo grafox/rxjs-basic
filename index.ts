@@ -1,4 +1,3 @@
-
 console.clear();
 
 // begin lesson code
